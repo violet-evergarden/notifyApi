@@ -7,7 +7,7 @@ const app = express();
 // 允许的域名白名单
 const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org'];
 // 测试密钥（允许绕过域名验证）
-const TEST_KEY = 'testkey';
+// const TEST_KEY = 'testkey';
 
 // 域名验证中间件
 const validateDomain = (req, res, next) => {
@@ -15,9 +15,9 @@ const validateDomain = (req, res, next) => {
   const testKey = req.headers['x-test-key'] || req.query.testkey;
   
   // 如果有测试密钥，跳过域名验证
-  if (testKey === TEST_KEY) {
-    return next();
-  }
+  // if (testKey === TEST_KEY) {
+  //   return next();
+  // }
   
   const origin = req.headers.origin;
   const referer = req.headers.referer;
