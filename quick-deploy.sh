@@ -13,27 +13,13 @@ PORT="8848"
 
 echo "🚀 快速部署 Notify API..."
 
-# 检查 Docker 是否安装和运行
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker 未安装"
-    exit 1
-fi
-
-# 检查 Docker 是否运行（忽略 stderr，因为某些警告不影响功能）
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker 未运行或无权限访问"
-    echo "提示: 如果 Docker 已安装，可能需要使用 sudo 或添加用户到 docker 组"
-    exit 1
-fi
-
-# 进入项目目录（如果脚本在项目根目录运行）
+# 进入项目目录
 if [ -d "$PROJECT_DIR" ]; then
     cd $PROJECT_DIR
 elif [ -f "package.json" ] && [ -f "app.js" ]; then
-    # 脚本已经在项目目录中
     echo "📁 当前目录即为项目目录"
 else
-    echo "❌ 项目目录不存在，请先运行 deploy.sh 或确保在项目目录中运行此脚本"
+    echo "❌ 项目目录不存在，请先运行 deploy.sh"
     exit 1
 fi
 
@@ -41,8 +27,6 @@ fi
 if [ -d ".git" ]; then
     echo "📥 更新代码..."
     git pull || echo "⚠️  Git pull 失败，继续使用现有代码"
-else
-    echo "ℹ️  未检测到 Git 仓库，跳过代码更新"
 fi
 
 # 检查 .env 文件
@@ -77,7 +61,6 @@ docker run -d \
 sleep 2
 
 # 检查状态
-sleep 2
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
     echo "✅ 部署成功！"
     echo ""
@@ -88,10 +71,8 @@ if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; 
     echo "  查看日志: docker logs -f $CONTAINER_NAME"
     echo "  停止容器: docker stop $CONTAINER_NAME"
     echo "  重启容器: docker restart $CONTAINER_NAME"
-    echo "  查看状态: docker ps | grep $CONTAINER_NAME"
 else
     echo "❌ 部署失败，查看日志:"
     docker logs $CONTAINER_NAME 2>/dev/null || echo "容器未启动，请检查错误信息"
     exit 1
 fi
-
