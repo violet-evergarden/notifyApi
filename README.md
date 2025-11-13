@@ -78,16 +78,46 @@ docker rm notify-api
 docker restart notify-api
 ```
 
-### 服务器部署步骤
+### 服务器一键部署（推荐）
+
+#### 方式1: 使用部署脚本（首次部署）
 
 ```bash
-# 1. 上传项目文件到服务器
-# 可以使用 git clone 或 scp 等方式
-
-# 2. 进入项目目录
+# 1. 下载部署脚本（或直接克隆仓库）
+git clone https://github.com/violet-evergarden/notifyApi.git
 cd notifyApi
 
-# 3. 复制并编辑环境变量文件
+# 2. 给脚本添加执行权限
+chmod +x deploy.sh
+
+# 3. 运行部署脚本
+./deploy.sh
+```
+
+脚本会自动：
+- ✅ 检查 Docker 和 Git 是否安装
+- ✅ 克隆/更新代码仓库
+- ✅ 检查并创建 .env 文件（如果不存在）
+- ✅ 构建 Docker 镜像
+- ✅ 停止并删除旧容器（如果存在）
+- ✅ 启动新容器
+
+#### 方式2: 快速部署（已配置好 .env）
+
+```bash
+# 如果已经配置好 .env 文件，可以使用快速部署脚本
+chmod +x quick-deploy.sh
+./quick-deploy.sh
+```
+
+#### 方式3: 手动部署
+
+```bash
+# 1. 克隆代码仓库
+git clone https://github.com/violet-evergarden/notifyApi.git
+cd notifyApi
+
+# 2. 复制并编辑环境变量文件
 cp env.example .env
 nano .env  # 或使用其他编辑器（vi, vim 等）
 # 编辑 .env 文件，填入你的实际配置：
@@ -95,20 +125,20 @@ nano .env  # 或使用其他编辑器（vi, vim 等）
 #   NOTIFY_BOT_CHAT_ID=你的Chat ID
 #   NOTIFY_BOT_URL=https://api.telegram.org/bot<your-bot-token>/
 
-# 4. 构建 Docker 镜像
+# 3. 构建 Docker 镜像
 docker build -t notify-api .
 
-# 5. 运行容器（使用 --env-file 加载 .env 文件，开放端口 8848）
+# 4. 运行容器（使用 --env-file 加载 .env 文件，开放端口 8848）
 docker run -d -p 8848:8848 \
   --env-file .env \
   --name notify-api \
   --restart unless-stopped \
   notify-api
 
-# 6. 检查容器状态
+# 5. 检查容器状态
 docker ps
 
-# 7. 查看日志确认服务正常运行
+# 6. 查看日志确认服务正常运行
 docker logs -f notify-api
 ```
 
@@ -296,6 +326,8 @@ notifyApi/
 ├── Dockerfile          # Docker 镜像构建文件
 ├── docker-compose.yml  # Docker Compose 配置（可选，如不使用可忽略）
 ├── env.example         # 环境变量配置模板
+├── deploy.sh           # 一键部署脚本（首次部署）
+├── quick-deploy.sh     # 快速部署脚本（已配置环境变量）
 ├── example.js          # Node.js 环境使用示例
 ├── example-browser.js  # 浏览器环境使用示例
 ├── .gitignore         # Git 忽略文件
