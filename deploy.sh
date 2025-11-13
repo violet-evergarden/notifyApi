@@ -41,17 +41,32 @@ check_command() {
 
 # 检查 Docker 是否运行
 check_docker() {
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker 未安装"
+    # 检查 docker 命令是否存在（包括 sudo docker）
+    if ! command -v docker &> /dev/null && ! command -v sudo &> /dev/null; then
+        print_error "Docker 未安装，请先安装 Docker"
         exit 1
     fi
     
-    # 检查 Docker 是否运行（忽略 stderr，因为某些警告不影响功能）
-    if ! docker info > /dev/null 2>&1; then
-        print_error "Docker 未运行或无权限访问"
-        print_warn "提示: 如果 Docker 已安装，可能需要使用 sudo 或添加用户到 docker 组"
-        exit 1
+    # 尝试直接运行 docker info
+    if docker info > /dev/null 2>&1; then
+        return 0
     fi
+    
+    # 如果失败，尝试使用 sudo
+    if command -v sudo &> /dev/null && sudo docker info > /dev/null 2>&1; then
+        print_warn "检测到需要使用 sudo 运行 docker 命令"
+        # 修改后续的 docker 命令为 sudo docker
+        DOCKER_CMD="sudo docker"
+        return 0
+    fi
+    
+    # 都失败了
+    print_error "Docker 未运行或无权限访问"
+    print_warn "提示:"
+    print_warn "  1. 确保 Docker 已安装: curl -fsSL https://get.docker.com | sh"
+    print_warn "  2. 确保 Docker 服务运行: sudo systemctl start docker"
+    print_warn "  3. 或添加用户到 docker 组: sudo usermod -aG docker $USER"
+    exit 1
 }
 
 # 主函数
@@ -94,20 +109,23 @@ main() {
         print_info ".env 文件已存在"
     fi
     
+    # 设置 docker 命令（如果检测到需要 sudo）
+    DOCKER_CMD=${DOCKER_CMD:-docker}
+    
     # 停止并删除旧容器（如果存在）
-    if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    if $DOCKER_CMD ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
         print_info "停止并删除旧容器..."
-        docker stop $CONTAINER_NAME 2>/dev/null || true
-        docker rm $CONTAINER_NAME 2>/dev/null || true
+        $DOCKER_CMD stop $CONTAINER_NAME 2>/dev/null || true
+        $DOCKER_CMD rm $CONTAINER_NAME 2>/dev/null || true
     fi
     
     # 构建镜像
     print_info "构建 Docker 镜像..."
-    docker build -t $IMAGE_NAME .
+    $DOCKER_CMD build -t $IMAGE_NAME .
     
     # 运行容器
     print_info "启动容器..."
-    docker run -d \
+    $DOCKER_CMD run -d \
         -p ${PORT}:${PORT} \
         --env-file .env \
         --name $CONTAINER_NAME \
@@ -118,14 +136,14 @@ main() {
     sleep 2
     
     # 检查容器状态
-    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    if $DOCKER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
         print_info "✅ 部署成功！"
         print_info "容器名称: $CONTAINER_NAME"
         print_info "端口: $PORT"
         print_info ""
-        print_info "查看日志: docker logs -f $CONTAINER_NAME"
-        print_info "停止容器: docker stop $CONTAINER_NAME"
-        print_info "重启容器: docker restart $CONTAINER_NAME"
+        print_info "查看日志: $DOCKER_CMD logs -f $CONTAINER_NAME"
+        print_info "停止容器: $DOCKER_CMD stop $CONTAINER_NAME"
+        print_info "重启容器: $DOCKER_CMD restart $CONTAINER_NAME"
         print_info ""
         print_info "测试 API:"
         print_info "  curl -X POST http://localhost:${PORT}/sendBot \\"
@@ -133,7 +151,7 @@ main() {
         print_info "    -H 'X-API-Key: YOUR_API_KEY' \\"
         print_info "    -d '{\"message\": \"测试消息\"}'"
     else
-        print_error "容器启动失败，请检查日志: docker logs $CONTAINER_NAME"
+        print_error "容器启动失败，请检查日志: $DOCKER_CMD logs $CONTAINER_NAME"
         exit 1
     fi
 }
