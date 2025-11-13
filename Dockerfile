@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装依赖（使用 npm install 因为可能没有 package-lock.json）
-RUN npm install --only=production
+RUN npm install
 
 # 复制应用代码
 COPY . .
