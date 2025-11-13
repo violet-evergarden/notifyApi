@@ -20,7 +20,7 @@ console.log('环境变量检查:');
 console.log('NOTIFY_BOT_URL:', NOTIFY_BOT_URL || '(未设置)');
 console.log('NOTIFY_BOT_CHAT_ID:', NOTIFY_BOT_CHAT_ID || '(未设置)');
 console.log('API_KEY:', API_KEY ? '已设置 (' + API_KEY.substring(0, 10) + '...)' : '未设置');
-
+console.log(process.env)
 // Header验证中间件
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
