@@ -62,6 +62,7 @@ echo "使用环境变量文件: $ENV_FILE"
 
 docker run -d \
     -p ${PORT}:${PORT} \
+    --network notify-net \
     --env-file "$ENV_FILE" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
