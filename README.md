@@ -196,7 +196,7 @@ npm run dev
 
 ## 示例请求
 
-### 发送消息到 Telegram Bot（使用 X-API-Key header）
+### 发送消息到 Telegram Bot（使用 v header）
 
 ```bash
 # 本地测试

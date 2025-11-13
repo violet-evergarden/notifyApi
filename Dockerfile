@@ -20,8 +20,6 @@ COPY . .
 EXPOSE 8848
 
 # 设置环境变量
-ENV NODE_ENV=development
-ENV PORT=8848
 
 # 启动命令
 CMD ["node", "app.js"]

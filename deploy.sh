@@ -64,7 +64,6 @@ echo "使用环境变量文件: $ENV_FILE"
 
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file "$ENV_FILE" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
