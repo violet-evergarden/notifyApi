@@ -72,17 +72,46 @@ if grep -q "your-chat-id-here\|<your-bot-token>" "$ENV_FILE_PATH"; then
     echo "⚠️  警告: .env 文件中包含模板值，请确保已替换为实际值"
 fi
 
-# 运行容器（使用绝对路径确保找到 .env 文件）
+# 读取 .env 文件中的环境变量
+echo "📖 读取环境变量..."
+source "$ENV_FILE_PATH" 2>/dev/null || true
+
+# 验证环境变量是否读取成功
+if [ -z "$API_KEY" ] || [ -z "$NOTIFY_BOT_CHAT_ID" ] || [ -z "$NOTIFY_BOT_URL" ]; then
+    echo "⚠️  警告: 从 .env 文件读取环境变量失败，尝试直接解析..."
+    # 直接解析 .env 文件
+    while IFS='=' read -r key value; do
+        # 跳过注释和空行
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # 移除引号和空格
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs | sed "s/^['\"]//;s/['\"]$//")
+        export "$key=$value"
+    done < "$ENV_FILE_PATH"
+fi
+
+# 显示读取的环境变量（隐藏敏感信息）
+echo "读取到的环境变量:"
+echo "  API_KEY: ${API_KEY:0:10}***"
+echo "  NOTIFY_BOT_CHAT_ID: $NOTIFY_BOT_CHAT_ID"
+echo "  NOTIFY_BOT_URL: $NOTIFY_BOT_URL"
+echo ""
+
+# 运行容器（直接传递环境变量，而不是使用 --env-file）
 echo "▶️  启动容器..."
-ENV_ABS_PATH="$(pwd)/$ENV_FILE_PATH"
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file "$ENV_ABS_PATH" \
+    -e API_KEY="$API_KEY" \
+    -e NOTIFY_BOT_CHAT_ID="$NOTIFY_BOT_CHAT_ID" \
+    -e NOTIFY_BOT_URL="$NOTIFY_BOT_URL" \
+    -e PORT="${PORT:-8848}" \
+    -e NODE_ENV="${NODE_ENV:-production}" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
 
-echo "✅ 已使用环境变量文件: $ENV_ABS_PATH"
+echo "✅ 容器已启动，环境变量已通过 -e 参数传递"
 
 # 等待容器启动
 sleep 2

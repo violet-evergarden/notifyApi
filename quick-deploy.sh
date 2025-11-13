@@ -49,22 +49,45 @@ fi
 echo "🔨 构建镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器（使用绝对路径确保找到 .env 文件）
-echo "▶️  启动容器..."
-ENV_ABS_PATH="$(pwd)/.env"
-if [ ! -f "$ENV_ABS_PATH" ]; then
-    echo "❌ .env 文件不存在: $ENV_ABS_PATH"
+# 读取 .env 文件中的环境变量
+echo "📖 读取环境变量..."
+if [ ! -f ".env" ]; then
+    echo "❌ .env 文件不存在"
     exit 1
 fi
 
+# 解析 .env 文件
+while IFS='=' read -r key value; do
+    # 跳过注释和空行
+    [[ "$key" =~ ^#.*$ ]] && continue
+    [[ -z "$key" ]] && continue
+    # 移除引号和空格
+    key=$(echo "$key" | xargs)
+    value=$(echo "$value" | xargs | sed "s/^['\"]//;s/['\"]$//")
+    export "$key=$value"
+done < .env
+
+# 显示读取的环境变量（隐藏敏感信息）
+echo "读取到的环境变量:"
+echo "  API_KEY: ${API_KEY:0:10}***"
+echo "  NOTIFY_BOT_CHAT_ID: $NOTIFY_BOT_CHAT_ID"
+echo "  NOTIFY_BOT_URL: $NOTIFY_BOT_URL"
+echo ""
+
+# 运行容器（直接传递环境变量）
+echo "▶️  启动容器..."
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file "$ENV_ABS_PATH" \
+    -e API_KEY="$API_KEY" \
+    -e NOTIFY_BOT_CHAT_ID="$NOTIFY_BOT_CHAT_ID" \
+    -e NOTIFY_BOT_URL="$NOTIFY_BOT_URL" \
+    -e PORT="${PORT:-8848}" \
+    -e NODE_ENV="${NODE_ENV:-production}" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
 
-echo "✅ 已使用环境变量文件: $ENV_ABS_PATH"
+echo "✅ 容器已启动，环境变量已通过 -e 参数传递"
 
 sleep 2
 
