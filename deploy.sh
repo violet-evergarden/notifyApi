@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Notify API 一键部署脚本
 # 使用方法: ./deploy.sh
@@ -80,22 +80,31 @@ source "$ENV_FILE_PATH" 2>/dev/null || true
 if [ -z "$API_KEY" ] || [ -z "$NOTIFY_BOT_CHAT_ID" ] || [ -z "$NOTIFY_BOT_URL" ]; then
     echo "⚠️  警告: 从 .env 文件读取环境变量失败，尝试直接解析..."
     # 直接解析 .env 文件
-    while IFS='=' read -r key value; do
+    while IFS='=' read -r key value || [ -n "$key" ]; do
         # 跳过注释和空行
-        [[ "$key" =~ ^#.*$ ]] && continue
-        [[ -z "$key" ]] && continue
-        # 移除引号和空格
+        case "$key" in
+            \#*|"") continue ;;
+        esac
+        # 移除空格
         key=$(echo "$key" | xargs)
         value=$(echo "$value" | xargs | sed "s/^['\"]//;s/['\"]$//")
-        export "$key=$value"
+        # 只导出非空值
+        if [ -n "$key" ] && [ -n "$value" ]; then
+            export "$key=$value"
+        fi
     done < "$ENV_FILE_PATH"
 fi
 
 # 显示读取的环境变量（隐藏敏感信息）
 echo "读取到的环境变量:"
-echo "  API_KEY: ${API_KEY:0:10}***"
-echo "  NOTIFY_BOT_CHAT_ID: $NOTIFY_BOT_CHAT_ID"
-echo "  NOTIFY_BOT_URL: $NOTIFY_BOT_URL"
+if [ -n "$API_KEY" ]; then
+    API_KEY_PREVIEW=$(echo "$API_KEY" | cut -c1-10)
+    echo "  API_KEY: ${API_KEY_PREVIEW}***"
+else
+    echo "  API_KEY: (未设置)"
+fi
+echo "  NOTIFY_BOT_CHAT_ID: ${NOTIFY_BOT_CHAT_ID:-未设置}"
+echo "  NOTIFY_BOT_URL: ${NOTIFY_BOT_URL:-未设置}"
 echo ""
 
 # 运行容器（直接传递环境变量，而不是使用 --env-file）
