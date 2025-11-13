@@ -53,74 +53,14 @@ fi
 echo "🔨 构建 Docker 镜像..."
 docker build -t $IMAGE_NAME .
 
-# 检查 .env 文件
-ENV_FILE_PATH=".env"
-if [ ! -f "$ENV_FILE_PATH" ]; then
-    echo "❌ .env 文件不存在！"
-    exit 1
-fi
-
-echo "📋 检查 .env 文件..."
-echo "✅ .env 文件存在: $(pwd)/$ENV_FILE_PATH"
-echo "环境变量配置:"
-grep -v "^#" "$ENV_FILE_PATH" | grep -v "^$" | sed 's/=.*/=***/' || echo "  (无有效配置)"
-echo ""
-
-# 验证 .env 文件格式
-echo "验证 .env 文件格式..."
-if grep -q "your-chat-id-here\|<your-bot-token>" "$ENV_FILE_PATH"; then
-    echo "⚠️  警告: .env 文件中包含模板值，请确保已替换为实际值"
-fi
-
-# 读取 .env 文件中的环境变量
-echo "📖 读取环境变量..."
-source "$ENV_FILE_PATH" 2>/dev/null || true
-
-# 验证环境变量是否读取成功
-if [ -z "$API_KEY" ] || [ -z "$NOTIFY_BOT_CHAT_ID" ] || [ -z "$NOTIFY_BOT_URL" ]; then
-    echo "⚠️  警告: 从 .env 文件读取环境变量失败，尝试直接解析..."
-    # 直接解析 .env 文件
-    while IFS='=' read -r key value || [ -n "$key" ]; do
-        # 跳过注释和空行
-        case "$key" in
-            \#*|"") continue ;;
-        esac
-        # 移除空格
-        key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs | sed "s/^['\"]//;s/['\"]$//")
-        # 只导出非空值
-        if [ -n "$key" ] && [ -n "$value" ]; then
-            export "$key=$value"
-        fi
-    done < "$ENV_FILE_PATH"
-fi
-
-# 显示读取的环境变量（隐藏敏感信息）
-echo "读取到的环境变量:"
-if [ -n "$API_KEY" ]; then
-    API_KEY_PREVIEW=$(echo "$API_KEY" | cut -c1-10)
-    echo "  API_KEY: ${API_KEY_PREVIEW}***"
-else
-    echo "  API_KEY: (未设置)"
-fi
-echo "  NOTIFY_BOT_CHAT_ID: ${NOTIFY_BOT_CHAT_ID:-未设置}"
-echo "  NOTIFY_BOT_URL: ${NOTIFY_BOT_URL:-未设置}"
-echo ""
-
-# 运行容器（直接传递环境变量，而不是使用 --env-file）
+# 运行容器（使用 --env-file 读取 .env 文件）
 echo "▶️  启动容器..."
 docker run -d \
     -p ${PORT}:${PORT} \
-    -e API_KEY="$API_KEY" \
-    -e NOTIFY_BOT_CHAT_ID="$NOTIFY_BOT_CHAT_ID" \
-    -e NOTIFY_BOT_URL="$NOTIFY_BOT_URL" \
-    -e PORT="${PORT:-8848}" \
-    -e NODE_ENV="${NODE_ENV:-production}" \
+    --env-file .env \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
-
-echo "✅ 容器已启动，环境变量已通过 -e 参数传递"
 
 # 等待容器启动
 sleep 2

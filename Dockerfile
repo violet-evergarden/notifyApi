@@ -13,6 +13,9 @@ RUN npm install --only=production
 # 复制应用代码
 COPY . .
 
+# 注意：.env 文件不会被复制到镜像中（已在 .gitignore 中）
+# 环境变量通过 docker run -e 或 --env-file 传递
+
 # 暴露端口
 EXPOSE 8848
 
