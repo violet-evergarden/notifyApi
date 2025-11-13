@@ -41,8 +41,15 @@ check_command() {
 
 # 检查 Docker 是否运行
 check_docker() {
-    if ! docker info &> /dev/null; then
-        print_error "Docker 未运行，请先启动 Docker 服务"
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker 未安装"
+        exit 1
+    fi
+    
+    # 检查 Docker 是否运行（忽略 stderr，因为某些警告不影响功能）
+    if ! docker info > /dev/null 2>&1; then
+        print_error "Docker 未运行或无权限访问"
+        print_warn "提示: 如果 Docker 已安装，可能需要使用 sudo 或添加用户到 docker 组"
         exit 1
     fi
 }
