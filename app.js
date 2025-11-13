@@ -41,7 +41,7 @@ const validateApiKey = (req, res, next) => {
 // POST 接口 - 需要API密钥验证
 app.post('/sendBot', validateApiKey, async (req, res) => {
   const { message } = req.body;
-  
+  console.log(NOTIFY_BOT_URL,NOTIFY_BOT_CHAT_ID,API_KEY)
   if (!message) {
     return res.status(400).json({ 
       error: 'Bad Request',
