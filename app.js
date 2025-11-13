@@ -14,6 +14,12 @@ const API_KEY = process.env.API_KEY || 'f3808faa-8147-41ee-9795-e1c04ddf319e';
 const NOTIFY_BOT_CHAT_ID = process.env.NOTIFY_BOT_CHAT_ID;
 const NOTIFY_BOT_URL = process.env.NOTIFY_BOT_URL;
 
+// 调试：打印环境变量（仅用于调试，生产环境应移除）
+console.log('环境变量检查:');
+console.log('NOTIFY_BOT_URL:', NOTIFY_BOT_URL);
+console.log('NOTIFY_BOT_CHAT_ID:', NOTIFY_BOT_CHAT_ID);
+console.log('API_KEY:', API_KEY ? '已设置' : '未设置');
+
 // Header验证中间件
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'] || req.headers['authorization'];
@@ -41,7 +47,6 @@ const validateApiKey = (req, res, next) => {
 // POST 接口 - 需要API密钥验证
 app.post('/sendBot', validateApiKey, async (req, res) => {
   const { message } = req.body;
-  console.log(NOTIFY_BOT_URL,NOTIFY_BOT_CHAT_ID,API_KEY)
   if (!message) {
     return res.status(400).json({ 
       error: 'Bad Request',

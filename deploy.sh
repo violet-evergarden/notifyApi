@@ -53,14 +53,36 @@ fi
 echo "🔨 构建 Docker 镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器
+# 检查 .env 文件
+ENV_FILE_PATH=".env"
+if [ ! -f "$ENV_FILE_PATH" ]; then
+    echo "❌ .env 文件不存在！"
+    exit 1
+fi
+
+echo "📋 检查 .env 文件..."
+echo "✅ .env 文件存在: $(pwd)/$ENV_FILE_PATH"
+echo "环境变量配置:"
+grep -v "^#" "$ENV_FILE_PATH" | grep -v "^$" | sed 's/=.*/=***/' || echo "  (无有效配置)"
+echo ""
+
+# 验证 .env 文件格式
+echo "验证 .env 文件格式..."
+if grep -q "your-chat-id-here\|<your-bot-token>" "$ENV_FILE_PATH"; then
+    echo "⚠️  警告: .env 文件中包含模板值，请确保已替换为实际值"
+fi
+
+# 运行容器（使用绝对路径确保找到 .env 文件）
 echo "▶️  启动容器..."
+ENV_ABS_PATH="$(pwd)/$ENV_FILE_PATH"
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file .env \
+    --env-file "$ENV_ABS_PATH" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
+
+echo "✅ 已使用环境变量文件: $ENV_ABS_PATH"
 
 # 等待容器启动
 sleep 2

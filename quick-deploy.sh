@@ -49,14 +49,22 @@ fi
 echo "🔨 构建镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器
+# 运行容器（使用绝对路径确保找到 .env 文件）
 echo "▶️  启动容器..."
+ENV_ABS_PATH="$(pwd)/.env"
+if [ ! -f "$ENV_ABS_PATH" ]; then
+    echo "❌ .env 文件不存在: $ENV_ABS_PATH"
+    exit 1
+fi
+
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file .env \
+    --env-file "$ENV_ABS_PATH" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
+
+echo "✅ 已使用环境变量文件: $ENV_ABS_PATH"
 
 sleep 2
 
