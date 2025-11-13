@@ -300,6 +300,8 @@ curl -X POST "http://your-server-ip:8848/sendBot" \
 - 支持两种 header 方式传递密钥：
   - `X-API-Key: your-secret-key`
   - `Authorization: Bearer your-secret-key`
+- **域名访问限制**：只允许从 `pandatool.org` 域名访问
+- **测试密钥**：可以使用 `X-Test-Key: testkey` header 或 `?testkey=testkey` 查询参数绕过域名验证（仅用于测试）
 - 消息支持 HTML 格式（通过 `parse_mode: "HTML"`）
 - Telegram Bot API 调用失败时会被忽略（不抛出异常），但会在日志中记录错误
 - **服务端口固定为 8848**，确保服务器防火墙开放此端口

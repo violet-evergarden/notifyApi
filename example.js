@@ -16,7 +16,8 @@ async function sendMessageWithApiKey() {
       {
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': API_KEY
+          'X-API-Key': API_KEY,
+          'X-Test-Key': 'testkey'  // 测试密钥，用于绕过域名验证
         }
       }
     );
