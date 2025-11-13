@@ -42,28 +42,39 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
-# 停止并删除旧容器（如果存在）
+# 停止并删除旧容器
 if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
     echo "🛑 停止并删除旧容器..."
     docker stop $CONTAINER_NAME 2>/dev/null || true
     docker rm $CONTAINER_NAME 2>/dev/null || true
+    echo "✅ 旧容器已删除"
 fi
 
-# 构建镜像
+# 删除旧镜像
+if docker images --format '{{.Repository}}' 2>/dev/null | grep -q "^${IMAGE_NAME}$"; then
+    echo "🗑️  删除旧镜像..."
+    docker rmi $IMAGE_NAME 2>/dev/null || true
+    echo "✅ 旧镜像已删除"
+fi
+
+# 构建新镜像
 echo "🔨 构建 Docker 镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器（使用绝对路径的 .env 文件）
+# 运行容器（使用当前目录的 .env 文件）
 echo "▶️  启动容器..."
-ENV_FILE="$(pwd)/.env"
-if [ ! -f "$ENV_FILE" ]; then
+CURRENT_DIR=$(pwd)
+ENV_FILE="$CURRENT_DIR/.env"
+if [ ! -f ".env" ]; then
     echo "❌ .env 文件不存在: $ENV_FILE"
     exit 1
 fi
+echo "当前目录: $CURRENT_DIR"
 echo "使用环境变量文件: $ENV_FILE"
 
 docker run -d \
     -p ${PORT}:${PORT} \
+    --env-file "$ENV_FILE" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
@@ -93,3 +104,4 @@ else
     docker logs $CONTAINER_NAME 2>/dev/null || echo "容器未启动，请检查错误信息"
     exit 1
 fi
+

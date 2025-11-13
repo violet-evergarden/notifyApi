@@ -13,11 +13,12 @@ PORT="8848"
 
 echo "🚀 快速部署 Notify API..."
 
-# 进入项目目录
-if [ -d "$PROJECT_DIR" ]; then
+# 检查当前目录是否已经是项目目录
+if [ -f "package.json" ] && [ -f "app.js" ]; then
+    echo "📁 当前目录即为项目目录: $(pwd)"
+elif [ -d "$PROJECT_DIR" ]; then
+    echo "📁 进入项目目录: $PROJECT_DIR"
     cd $PROJECT_DIR
-elif [ -f "package.json" ] && [ -f "app.js" ]; then
-    echo "📁 当前目录即为项目目录"
 else
     echo "❌ 项目目录不存在，请先运行 deploy.sh"
     exit 1
@@ -29,28 +30,39 @@ if [ -d ".git" ]; then
     git pull || echo "⚠️  Git pull 失败，继续使用现有代码"
 fi
 
-# 停止旧容器
+# 停止并删除旧容器
 if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
-    echo "🛑 停止旧容器..."
+    echo "🛑 停止并删除旧容器..."
     docker stop $CONTAINER_NAME 2>/dev/null || true
     docker rm $CONTAINER_NAME 2>/dev/null || true
+    echo "✅ 旧容器已删除"
 fi
 
-# 构建镜像
+# 删除旧镜像
+if docker images --format '{{.Repository}}' 2>/dev/null | grep -q "^${IMAGE_NAME}$"; then
+    echo "🗑️  删除旧镜像..."
+    docker rmi $IMAGE_NAME 2>/dev/null || true
+    echo "✅ 旧镜像已删除"
+fi
+
+# 构建新镜像
 echo "🔨 构建镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器（使用绝对路径的 .env 文件）
+# 运行容器（使用当前目录的 .env 文件）
 echo "▶️  启动容器..."
-ENV_FILE="$(pwd)/.env"
-if [ ! -f "$ENV_FILE" ]; then
+CURRENT_DIR=$(pwd)
+ENV_FILE="$CURRENT_DIR/.env"
+if [ ! -f ".env" ]; then
     echo "❌ .env 文件不存在: $ENV_FILE"
     exit 1
 fi
+echo "当前目录: $CURRENT_DIR"
 echo "使用环境变量文件: $ENV_FILE"
 
 docker run -d \
     -p ${PORT}:${PORT} \
+    --env-file "$ENV_FILE" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
@@ -73,3 +85,4 @@ else
     docker logs $CONTAINER_NAME 2>/dev/null || echo "容器未启动，请检查错误信息"
     exit 1
 fi
+
