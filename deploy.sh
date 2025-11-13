@@ -53,11 +53,18 @@ fi
 echo "🔨 构建 Docker 镜像..."
 docker build -t $IMAGE_NAME .
 
-# 运行容器（使用 --env-file 读取 .env 文件）
+# 运行容器（使用绝对路径的 .env 文件）
 echo "▶️  启动容器..."
+ENV_FILE="$(pwd)/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env 文件不存在: $ENV_FILE"
+    exit 1
+fi
+echo "使用环境变量文件: $ENV_FILE"
+
 docker run -d \
     -p ${PORT}:${PORT} \
-    --env-file .env \
+    --env-file "$ENV_FILE" \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     $IMAGE_NAME
