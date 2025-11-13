@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  notify-api:
+    build: .
+    container_name: notify-api
+    ports:
+      - "8848:8848"
+    environment:
+      - NODE_ENV=production
+      - PORT=8848
+      - API_KEY=${API_KEY:-f3808faa-8147-41ee-9795-e1c04ddf319e}
+      - NOTIFY_BOT_CHAT_ID=${NOTIFY_BOT_CHAT_ID}
+      - NOTIFY_BOT_URL=${NOTIFY_BOT_URL}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    restart: unless-stopped
+
