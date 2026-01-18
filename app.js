@@ -1,30 +1,47 @@
+// Polyfill fetch for Node.js (required by @ardrive/turbo-sdk dependencies)
+if (!globalThis.fetch) {
+  globalThis.fetch = require('node-fetch');
+}
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const multer = require('multer');
+const fs = require('fs').promises;
+const path = require('path');
+const { TurboFactory } = require('@ardrive/turbo-sdk');
+const { HexSolanaSigner } = require('@dha-team/arbundles');
 const app = express();
 
 // 允许的域名白名单
-const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org'];
+const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org',"ton.pandatool.org"];
+// const ALLOWED_DOMAINS = ["*"];
+
+
 // 测试密钥（允许绕过域名验证）
 // const TEST_KEY = 'testkey';
 
 // 域名验证中间件
 const validateDomain = (req, res, next) => {
+  // 如果允许所有域名（开发模式），跳过验证
+  if (ALLOWED_DOMAINS.includes('*')) {
+    return next();
+  }
+
   // 检查是否有测试密钥（通过 header 或 query 参数）
-  const testKey = req.headers['x-test-key'] || req.query.testkey;
-  
+
   // 如果有测试密钥，跳过域名验证
   // if (testKey === TEST_KEY) {
   //   return next();
   // }
-  
+
   const origin = req.headers.origin;
   const referer = req.headers.referer;
-  
+
   // 提取域名
   let domain = null;
-  
+
   if (origin) {
     try {
       const url = new URL(origin);
@@ -41,7 +58,7 @@ const validateDomain = (req, res, next) => {
       domain = referer.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
     }
   }
-  
+
   // 如果没有 origin 和 referer，拒绝访问（不允许直接 IP 或未知来源访问）
   if (!domain) {
     return res.status(403).json({
@@ -53,7 +70,7 @@ const validateDomain = (req, res, next) => {
   // 移除 www 前缀进行比较
   const domainWithoutWww = domain.replace(/^www\./, '');
   const isAllowed = ALLOWED_DOMAINS.some(allowed => {
-    const allowedWithoutWww = allowed.replace(/^www\./, '');
+    const allowedWithoutWww = allowed.replace(/^www\./, '').replace(/^\*\./, ''); // 处理 *.domain.com
     return domainWithoutWww === allowedWithoutWww;
   });
 
@@ -70,17 +87,22 @@ const validateDomain = (req, res, next) => {
 // 中间件
 app.use(cors({
   origin: function (origin, callback) {
+    // 如果允许所有域名（开发模式）
+    if (ALLOWED_DOMAINS.includes('*')) {
+      return callback(null, true);
+    }
+
     // 如果没有 origin（如服务器端请求），允许（会在域名验证中间件中进一步检查）
     if (!origin) {
       return callback(null, true);
     }
-    
+
     const originDomain = origin.replace(/^https?:\/\//, '').replace(/^www\./, '').split(':')[0];
     const isAllowed = ALLOWED_DOMAINS.some(domain => {
-      const domainWithoutWww = domain.replace(/^www\./, '');
+      const domainWithoutWww = domain.replace(/^www\./, '').replace(/^\*\./, ''); // 处理 *.domain.com
       return originDomain === domainWithoutWww;
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -106,6 +128,36 @@ const API_KEY = process.env.API_KEY || 'f3808faa-8147-41ee-9795-e1c04ddf319e';
 // Telegram Bot 配置
 const NOTIFY_BOT_CHAT_ID = process.env.NOTIFY_BOT_CHAT_ID;
 const NOTIFY_BOT_URL = process.env.NOTIFY_BOT_URL;
+
+// Turbo / Arweave 配置
+const TURBO_PRIVATE_KEY = process.env.TURBO_PRIVATE_KEY || '5ricaNLjikwHDHyARr5UbH2CeLskeGjgATMFozKMFQLnWgcuexa4be7J2TiNx2C1B2uHobyoD7Ln4QguKDALYaDA';
+
+// Block explorer URLs
+const explorerUrl = {
+  "56": "https://bscscan.com/tx/",
+  "97": "https://testnet.bscscan.com/tx/",
+  "1": "https://etherscan.io/tx/",
+  "137": "https://polygonscan.com/tx/",
+  "8453": "https://basescan.org/tx/",
+  "42161": "https://arbiscan.io/tx/",
+};
+
+// Multer 配置用于文件上传
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 100000 }, // 100KB limit
+});
+
+// 获取 Turbo 客户端
+const getTurboClient = () => {
+  const signer = new HexSolanaSigner(TURBO_PRIVATE_KEY);
+  const turbo = TurboFactory.authenticated({
+    signer,
+    token: "solana",
+  });
+  return turbo;
+};
 
 // 调试：打印环境变量（仅用于调试，生产环境应移除）
 console.log('环境变量检查:');
@@ -174,6 +226,125 @@ app.post('/sendBot', validateApiKey, async (req, res) => {
       success: true,
       message: 'Request processed (errors ignored)'
     });
+  }
+});
+
+// POST /upload_img - 上传图片到 Arweave
+app.post('/upload_img', validateApiKey, upload.single('file'), async (req, res) => {
+  try {
+   
+    if (!req.file) {
+      return res.status(400).json({ code: 400, message: 'No file uploaded' });
+    }
+
+    // 检查文件大小
+    if (req.file.size > 100000) {
+      return res.json({ code: 406, message: 'img oversized!' });
+    }
+
+    const imageTags = [{ name: 'Content-Type', value: 'image/png' }];
+    const turbo = getTurboClient();
+
+    const imageUploadResult = await turbo.upload({
+      data: new Uint8Array(req.file.buffer),
+      dataItemOpts: {
+        tags: imageTags,
+      },
+    });
+
+    const imgURI = 'https://arweave.net/' + imageUploadResult.id;
+
+    return res.json({ code: 200, message: 'success', imgURI: imgURI });
+  } catch (e) {
+    console.error('Error uploading image:', e);
+    return res.json({ code: 405, message: e.message || 'Upload failed' });
+  }
+});
+
+// POST /upload_logo_meta_ario - 上传 Logo 和元数据到 Arweave
+app.post('/upload_logo_meta', validateApiKey, upload.single('file'), async (req, res) => {
+  try {
+    const {
+      mainnet,
+      tokenAddress,
+      channelPlatform,
+      imgType,
+      description,
+      website,
+      telegram,
+      twitter,
+      discord,
+      qqGroup,
+      whitepaper,
+      contact,
+      payNeworkId,
+      payTx
+    } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ code: 400, message: 'No file uploaded' });
+    }
+
+    // 检查文件大小
+    if (req.file.size > 100000) {
+      return res.json({ code: 406, message: 'img oversized!' });
+    }
+
+    // 构建元数据对象
+    const metaData = {
+      mainnet,
+      tokenAddress,
+      logo: '',
+      channelPlatform,
+    };
+
+    // 添加可选字段
+    if (description) metaData.description = description;
+    if (website) metaData.website = website;
+    if (telegram) metaData.telegram = telegram;
+    if (twitter) metaData.twitter = twitter;
+    if (discord) metaData.discord = discord;
+    if (qqGroup) metaData.qqGroup = qqGroup;
+    if (whitepaper) metaData.whitepaper = whitepaper;
+    if (contact) metaData.contact = contact;
+
+    // 上传图片
+    const imageTags = [{ name: 'Content-Type', value: imgType || 'image/png' }];
+    const turbo = getTurboClient();
+
+    const imageUploadResult = await turbo.upload({
+      data: new Uint8Array(req.file.buffer),
+      dataItemOpts: {
+        tags: imageTags,
+      },
+    });
+
+    const imgURI = 'https://arweave.net/' + imageUploadResult.id;
+    metaData.logo = imgURI;
+
+    // 上传元数据
+    const metaTags = [{ name: 'Content-Type', value: 'application/json' }];
+    const metaDataC = {
+      ...metaData,
+      payUrl: explorerUrl[payNeworkId] + payTx,
+    };
+
+    const metaDataString = JSON.stringify(metaDataC, null, 2);
+    const metaDataBuffer = Buffer.from(metaDataString);
+
+    const metaUploadResult = await turbo.upload({
+      data: new Uint8Array(metaDataBuffer),
+      dataItemOpts: {
+        tags: metaTags,
+      },
+    });
+
+    const metaURI = 'https://arweave.net/' + metaUploadResult.id;
+
+    return res.json({ code: 200, metaURI: metaURI });
+  } catch (e) {
+    console.error('Error uploading data:', e);
+    return res.json({ code: 405, message: e.message || 'Upload failed' });
   }
 });
 

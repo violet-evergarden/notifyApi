@@ -15,13 +15,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
+    "@ardrive/turbo-sdk": "^1.40.0",
+    "@dha-team/arbundles": "^1.0.4",
     "axios": "^1.6.2",
-    "dotenv": "^16.3.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "formidable": "^3.5.4",
+    "multer": "^2.0.2",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
 }
-
