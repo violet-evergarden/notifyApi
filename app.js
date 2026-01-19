@@ -309,16 +309,16 @@ app.post('/upload_logo_meta', validateApiKey, upload.single('file'), async (req,
     if (contact) metaData.contact = contact;
 
     // 上传图片
-    const imageTags = [{ name: 'Content-Type', value: imgType || 'image/png' }];
+    const imageTags = [{ name: 'Content-Type', value:  'image/png' }];
     const turbo = getTurboClient();
-
+    // console.log(123)
     const imageUploadResult = await turbo.upload({
       data: new Uint8Array(req.file.buffer),
       dataItemOpts: {
         tags: imageTags,
       },
     });
-
+    // console.log(imageUploadResult)
     const imgURI = 'https://arweave.net/' + imageUploadResult.id;
     metaData.logo = imgURI;
 
@@ -330,7 +330,7 @@ app.post('/upload_logo_meta', validateApiKey, upload.single('file'), async (req,
     };
 
     const metaDataString = JSON.stringify(metaDataC, null, 2);
-    const metaDataBuffer = Buffer.from(metaDataString);
+    const metaDataBuffer = Buffer.from(metaDataString,"utf-8");
 
     const metaUploadResult = await turbo.upload({
       data: new Uint8Array(metaDataBuffer),
