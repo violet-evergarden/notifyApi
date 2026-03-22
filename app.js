@@ -15,7 +15,7 @@ const { HexSolanaSigner } = require('@dha-team/arbundles');
 const app = express();
 
 // 允许的域名白名单
-const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org',"ton.pandatool.org"];
+const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org',"ton.pandatool.org","*.pandatool.org","pandatool-next.vercel.app"];
 // const ALLOWED_DOMAINS = ["*"];
 
 
@@ -23,43 +23,36 @@ const ALLOWED_DOMAINS = ['pandatool.org', 'www.pandatool.org',"ton.pandatool.org
 // const TEST_KEY = 'testkey';
 
 // 域名验证中间件
+// 域名验证中间件（支持 *.xxx.com）
 const validateDomain = (req, res, next) => {
-  // 如果允许所有域名（开发模式），跳过验证
+  // 允许全部（开发模式）
   if (ALLOWED_DOMAINS.includes('*')) {
     return next();
   }
 
-  // 检查是否有测试密钥（通过 header 或 query 参数）
-
-  // 如果有测试密钥，跳过域名验证
-  // if (testKey === TEST_KEY) {
-  //   return next();
-  // }
-
   const origin = req.headers.origin;
   const referer = req.headers.referer;
 
-  // 提取域名
   let domain = null;
 
+  // 解析 origin
   if (origin) {
     try {
-      const url = new URL(origin);
-      domain = url.hostname;
-    } catch (e) {
-      // 如果 URL 解析失败，尝试简单提取
+      domain = new URL(origin).hostname;
+    } catch {
       domain = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
     }
-  } else if (referer) {
+  }
+  // fallback referer
+  else if (referer) {
     try {
-      const url = new URL(referer);
-      domain = url.hostname;
-    } catch (e) {
+      domain = new URL(referer).hostname;
+    } catch {
       domain = referer.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
     }
   }
 
-  // 如果没有 origin 和 referer，拒绝访问（不允许直接 IP 或未知来源访问）
+  // 没有来源直接拒绝
   if (!domain) {
     return res.status(403).json({
       error: 'Forbidden',
@@ -67,17 +60,34 @@ const validateDomain = (req, res, next) => {
     });
   }
 
-  // 移除 www 前缀进行比较
+  // 去掉 www
   const domainWithoutWww = domain.replace(/^www\./, '');
-  const isAllowed = ALLOWED_DOMAINS.some(allowed => {
-    const allowedWithoutWww = allowed.replace(/^www\./, '').replace(/^\*\./, ''); // 处理 *.domain.com
-    return domainWithoutWww === allowedWithoutWww;
+
+  // ✅ 核心：支持通配符匹配
+  const isAllowed = ALLOWED_DOMAINS.some((allowed) => {
+    const allowedClean = allowed.replace(/^www\./, '');
+
+    // 允许所有
+    if (allowedClean === '*') return true;
+
+    // 👉 处理 *.domain.com
+    if (allowedClean.startsWith('*.')) {
+      const baseDomain = allowedClean.slice(2); // 去掉 "*."
+
+      return (
+        domainWithoutWww === baseDomain || // 是否允许根域（可删）
+        domainWithoutWww.endsWith(`.${baseDomain}`)
+      );
+    }
+
+    // 普通匹配
+    return domainWithoutWww === allowedClean;
   });
 
   if (!isAllowed) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: `Domain .`
+      message: `Domain not allowed: ${domain}`
     });
   }
 
