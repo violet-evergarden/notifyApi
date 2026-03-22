@@ -1,5 +1,5 @@
-# 使用Node.js官方镜像作为基础镜像 
-FROM node:20.10.0 
+# 使用Node.js官方镜像作为基础镜像  v20.20.0
+FROM node:20.20.0 
 
 # 设置工作目录
 WORKDIR /app
